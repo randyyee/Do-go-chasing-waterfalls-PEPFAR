@@ -13,17 +13,10 @@
 
 library(tidyverse)
 library(openxlsx)
-library(foreach)
-library(parallel)
-library(doParallel)
 
 source("waterfall.R")
 
 # ## ==================== MAIN ====================
-n.cores    <- parallel::detectCores()
-my.cluster <- parallel::makeCluster(n.cores, type = "PSOCK")
-doParallel::registerDoParallel(cl = my.cluster)
-
 period_list <- list(
   # c("2020_qtr1", "2020_qtr2", "2020_targets"),
   # c("2020_qtr2", "2020_qtr3", "2020_targets"),
@@ -45,9 +38,6 @@ ou_df <- msd_df("ESWATINI_SITE_22Q3.txt")
 df <- list()
 
 startTime <- Sys.time()
-
-# df <- foreach(i = 1:length(period_list), .packages = c("tidyverse")) %dopar%
-#   txs_generate(ou_df, period_list[[i]][1], period_list[[i]][2], period_list[[i]][3])
 
 for(i in 1:length(period_list)){
   df[[i]] <- txs_generate(ou_df, period_list[[i]][1], period_list[[i]][2], period_list[[i]][3])
