@@ -1,11 +1,14 @@
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## TITLE: MAIN WATERFALL WRANGLE
-## AUTHOR: Randy Yee (pcx5@cdc.gov)
+## AUTHOR: Randy Yee
 ## DESCRIPTION: 
-##      TSD Refactor from Imran Mujawar (CDC)'s original script
-##      Download from DATIM with select TX indicators and disaggs
+##      TSD refactor and update from Imran Mujawar's original script
+##      Download from DATIM with select TX indicators
+##      Operating Unit: 
+##      Indicator: TX_CURR, TX_ML, TX_NEW, TX_RTT
+##     Fiscal Year: 2022,2021,2020,
 ## CREATION DATE: 6/8/2020
-## UPDATE: 2/28/2020
+## UPDATE: 9/20/2022
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 library(tidyverse)
@@ -22,44 +25,61 @@ my.cluster <- parallel::makeCluster(n.cores, type = "PSOCK")
 doParallel::registerDoParallel(cl = my.cluster)
 
 period_list <- list(
-  c("2020_qtr1", "2020_qtr2", "2020_targets"),
-  c("2020_qtr2", "2020_qtr3", "2020_targets"),
-  c("2020_qtr3", "2020_qtr4", "2020_targets"),
-  c("2020_qtr4", "2021_qtr1", "2021_targets"),
-
+  # c("2020_qtr1", "2020_qtr2", "2020_targets"),
+  # c("2020_qtr2", "2020_qtr3", "2020_targets"),
+  # c("2020_qtr3", "2020_qtr4", "2020_targets"),
+  # c("2020_qtr4", "2021_qtr1", "2021_targets"),
+  
   c("2021_qtr1", "2021_qtr2", "2021_targets"),
   c("2021_qtr2", "2021_qtr3", "2021_targets"),
   c("2021_qtr3", "2021_qtr4", "2021_targets"),
-  c("2021_qtr4", "2022_qtr1", "2022_targets")
+  c("2021_qtr4", "2022_qtr1", "2022_targets"),
+  
+  c("2022_qtr1", "2022_qtr2", "2022_targets"),
+  c("2022_qtr2", "2022_qtr3", "2022_targets")#,
+  #c("2022_qtr3", "2022_qtr4", "2022_targets"),
 )
 
-ou_df <- msd_df("MSD.txt")
+ou_df <- msd_df("ESWATINI_SITE_22Q3.txt")
 
-df <- foreach(i = 1:length(period_list)) %dopar%
-  txs_generate(ou_df, period_list[[i]][1], period_list[[i]][2], period_list[[i]][3])
+df <- list()
+
+startTime <- Sys.time()
+
+# df <- foreach(i = 1:length(period_list), .packages = c("tidyverse")) %dopar%
+#   txs_generate(ou_df, period_list[[i]][1], period_list[[i]][2], period_list[[i]][3])
+
+for(i in 1:length(period_list)){
+  df[[i]] <- txs_generate(ou_df, period_list[[i]][1], period_list[[i]][2], period_list[[i]][3])
+}
+
+endTime <- Sys.time()
+print(endTime - startTime)
 
 df1 <- bind_rows(df) %>%
   discard(~all(is.na(.)))
 
-write.csv(df1,"test.csv", na = "")
+write.xlsx(df1,"test.xlsx", na = "")
 
 
 
-# ## ==================== TESTS ==================== 
-# test <- msd_import("MSD.txt")
+## ==================== TESTS ==================== 
+# test  <- msd_import_long("ESWATINI_SITE_22Q3.txt")
 # 
-# test1 <- msd_convert_long(test)
+# test  <- txs_lag_indicators(test)
 # 
-# test2 <- recode_period_txdisagg(test1, "2021_qtr4", "2022_qtr1", "2022_targets")
+# test1 <- recode_period_txdisagg(test, "2021_qtr4", "2022_qtr1", "2022_targets")
 # 
-# test3 <- recode_prioritizations(test2)
+# test2 <- recode_prioritizations(test1)
 # 
-# test4 <- collapse_age(test3)
+# test3 <- collapse_age(test2)
 # 
-# test5 <- redo_indicator_name(test4)
+# test4 <- redo_indicator_name(test3)
 # 
-# test6 <- txs_clean(test5)
+# test5 <- txs_clean(test4)
 # 
-# test7 <- txs_convert_wide(test6)
+# test6 <- txs_convert_wide(test5)
+# 
+# test7 <- waterfall_standardized(test6)
 # 
 # compose_test <- txs_generate(ou_list[3], "2020_qtr2", "2020_qtr3", "2020_targets")
