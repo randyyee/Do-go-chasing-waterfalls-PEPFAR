@@ -49,20 +49,22 @@ msd_import_long <- function(msd_txt){
 
 ## ==================== TXS LAG INDICATORS ====================
 txs_lag_indicators <- function(msd_imported_long){
+  
   df <- rbind(
     msd_imported_long, 
     msd_imported_long %>%
       filter(indicator %in% c("TX_CURR", "TX_NEW")) %>%
       filter(str_detect(period, "qtr")) %>%
-      arrange(indicator) %>%
+      pivot_wider(names_from = period, values_from = value) %>%
+      pivot_longer(cols = contains("qtr"), names_to = "period", values_to = "value") %>%
       pivot_wider(names_from = indicator, values_from = value) %>%
       group_by(across(c(-period, -TX_CURR, -TX_NEW))) %>% 
-      mutate(TX_CURR_LAG  = lag(TX_CURR,     order_by = period),
-             TX_CURR_LAG2 = lag(TX_CURR_LAG, order_by = period),
-             TX_NEW_LAG   = lag(TX_NEW,      order_by = period),
-             TX_NEW_LAG2  = lag(TX_NEW_LAG,  order_by = period)) %>%
+      mutate(TX_CURR_LAG  = dplyr::lag(TX_CURR,     order_by = period),
+             TX_CURR_LAG2 = dplyr::lag(TX_CURR_LAG, order_by = period),
+             TX_NEW_LAG   = dplyr::lag(TX_NEW,      order_by = period),
+             TX_NEW_LAG2  = dplyr::lag(TX_NEW_LAG,  order_by = period)) %>%
       ungroup() %>%
-      pivot_longer(TX_CURR:TX_NEW_LAG2, names_to = "indicator", values_to = "value") %>%
+      pivot_longer(contains("TX"), names_to = "indicator", values_to = "value") %>%
       filter(!indicator %in% c("TX_CURR", "TX_NEW")))
 }
 
@@ -194,7 +196,6 @@ waterfall_standardized <- function(txs_converted_wide){
                `TX_RTT_6+ Months Interruption`                = "TX_RTT_No Contact Outcome - Interruption In Treatment 6+ Months Interruption_Now_R")
   
   df <- txs_converted_wide %>% 
-    mutate(period = paste0("FY",substr(period,3,4),"Q",substr(period,9,9))) %>% 
     rename(any_of(lookup1))
   
   shell_col <- c("operatingunit",                                                         
@@ -248,17 +249,11 @@ waterfall_standardized <- function(txs_converted_wide){
 
 
 ## ==================== COMPOSED FUNCTION ====================
-msd_df <- function(msd_txt){
-  
-  df <- msd_import_long(msd_txt)
-  
-  df <- txs_lag_indicators(df)
-  
-}
-
 txs_generate <- function(msd_long_df, prevR, currR, currT){
   
-  df <- recode_period_txdisagg(msd_long_df, prevR, currR, currT)
+  df <- txs_lag_indicators(msd_long_df)
+  
+  df <- recode_period_txdisagg(df, prevR, currR, currT)
   
   if("orgunituid" %in% colnames(df)){
     df <- recode_prioritizations(df)
